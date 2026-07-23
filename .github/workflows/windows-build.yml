@@ -45,6 +45,9 @@ jobs:
 
       - name: Build Tauri App
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         run: |
           $ErrorActionPreference = 'Stop'
           pnpm tauri build
