@@ -1,0 +1,85 @@
+name: Windows Build (x64)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.12.3
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri App
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm tauri build
+
+      - name: Prepare assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          $VERSION = '3.18.0-kimicode'
+
+          $msi = Get-ChildItem -Path 'src-tauri/target/release/bundle/msi' -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -ne $msi) {
+            Copy-Item $msi.FullName (Join-Path release-assets "CC-Switch-$VERSION-Windows.msi")
+            Write-Host "MSI copied"
+          } else {
+            Write-Warning 'No MSI found'
+          }
+
+          $exePath = 'src-tauri/target/release/cc-switch.exe'
+          if (Test-Path $exePath) {
+            $portableDir = 'release-assets/CC-Switch-Portable'
+            New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
+            Copy-Item $exePath $portableDir
+            @('# CC Switch portable build marker', 'portable=true') | Set-Content -Path (Join-Path $portableDir 'portable.ini') -Encoding UTF8
+            Compress-Archive -Path "$portableDir/*" -DestinationPath "release-assets/CC-Switch-$VERSION-Windows-Portable.zip" -Force
+            Remove-Item -Recurse -Force $portableDir
+            Write-Host "Portable zip created"
+          } else {
+            Write-Error 'cc-switch.exe not found'
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-x64
+          path: release-assets/*
+          if-no-files-found: error
