@@ -890,9 +890,15 @@
   },
   "kimiCode": {
     "form": {
+      "apiKey": "API Key",
+      "apiKeyRequired": "Please enter your API Key",
+      "baseUrl": "Base URL",
+      "model": "Model",
+      "advancedToml": "Advanced (TOML)",
+      "invalidToml": "TOML cannot be parsed. Please fix it in Advanced (TOML).",
       "config": "Kimi Code config.toml",
-      "configPlaceholder": "default_model = \"managed:kimi-code/kimi-for-coding\"",
-      "configHint": "Edit the complete Kimi Code TOML configuration. It is written to ~/.kimi-code/config.toml; OAuth credentials remain managed by Kimi Code.",
+      "configPlaceholder": "default_model = \"kimi-code/k3\"",
+      "configHint": "Edit the full TOML directly. It is written to ~/.kimi-code/config.toml on save; changes to the fields above are synced here.",
       "configRequired": "Please enter the Kimi Code config.toml content"
     }
   },

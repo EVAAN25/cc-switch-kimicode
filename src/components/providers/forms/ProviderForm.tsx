@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { providerSchema, type ProviderFormData } from "@/lib/schemas/provider";
 import {
   buildLocalProxyRequestOverrides,
@@ -127,8 +126,10 @@ import { useHermesLiveProviderIds } from "@/hooks/useHermes";
 import {
   KIMI_CODE_DEFAULT_CONFIG,
   extractKimiCodeToml,
+  parseKimiCodeFields,
   serializeKimiCodeToml,
 } from "@/config/kimiCode";
+import { KimiCodeFormFields } from "./KimiCodeFormFields";
 
 type PresetEntry = {
   id: string;
@@ -1074,12 +1075,29 @@ function ProviderFormFull({
       );
     }
 
-    if (appId === "kimi-code" && !kimiCodeToml.trim()) {
-      issues.push(
-        t("kimiCode.form.configRequired", {
-          defaultValue: "请填写 Kimi Code 的 config.toml 内容",
-        }),
-      );
+    if (appId === "kimi-code") {
+      if (!kimiCodeToml.trim()) {
+        issues.push(
+          t("kimiCode.form.configRequired", {
+            defaultValue: "请填写 Kimi Code 的 config.toml 内容",
+          }),
+        );
+      } else {
+        const kimiCodeFields = parseKimiCodeFields(kimiCodeToml);
+        if (!kimiCodeFields) {
+          issues.push(
+            t("kimiCode.form.invalidToml", {
+              defaultValue: "TOML 无法解析，请在高级配置中修正",
+            }),
+          );
+        } else if (!kimiCodeFields.apiKey.trim()) {
+          issues.push(
+            t("kimiCode.form.apiKeyRequired", {
+              defaultValue: "请填写 API Key",
+            }),
+          );
+        }
+      }
     }
 
     const costMultiplier = pricingConfig.costMultiplier?.trim();
@@ -2519,35 +2537,16 @@ function ProviderFormFull({
             </>
           ) : appId === "kimi-code" ? (
             <>
-              <div className="space-y-2">
-                <Label htmlFor="kimi-code-config">
-                  {t("kimiCode.form.config", {
-                    defaultValue: "Kimi Code config.toml",
-                  })}
-                </Label>
-                <Textarea
-                  id="kimi-code-config"
-                  value={kimiCodeToml}
-                  onChange={(event) =>
-                    form.setValue(
-                      "settingsConfig",
-                      serializeKimiCodeToml(event.target.value),
-                      { shouldDirty: true },
-                    )
-                  }
-                  placeholder={t("kimiCode.form.configPlaceholder", {
-                    defaultValue: "default_model = \"managed:kimi-code/kimi-for-coding\"",
-                  })}
-                  className="min-h-[360px] resize-y font-mono text-xs leading-5"
-                  spellCheck={false}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("kimiCode.form.configHint", {
-                    defaultValue:
-                      "编辑 Kimi Code 的完整 TOML 配置。保存后会写入 ~/.kimi-code/config.toml；OAuth 登录凭据仍由 Kimi Code 管理。",
-                  })}
-                </p>
-              </div>
+              <KimiCodeFormFields
+                toml={kimiCodeToml}
+                onTomlChange={(value) =>
+                  form.setValue(
+                    "settingsConfig",
+                    serializeKimiCodeToml(value),
+                    { shouldDirty: true },
+                  )
+                }
+              />
               {settingsConfigErrorField}
             </>
           ) : appId === "opencode" &&

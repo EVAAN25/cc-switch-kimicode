@@ -861,9 +861,15 @@
   },
   "kimiCode": {
     "form": {
+      "apiKey": "API Key",
+      "apiKeyRequired": "請填寫 API Key",
+      "baseUrl": "Base URL",
+      "model": "模型",
+      "advancedToml": "進階設定（TOML）",
+      "invalidToml": "TOML 無法解析，請在進階設定（TOML）中修正",
       "config": "Kimi Code config.toml",
-      "configPlaceholder": "default_model = \"managed:kimi-code/kimi-for-coding\"",
-      "configHint": "編輯 Kimi Code 的完整 TOML 設定。儲存後會寫入 ~/.kimi-code/config.toml；OAuth 登入憑證仍由 Kimi Code 管理。",
+      "configPlaceholder": "default_model = \"kimi-code/k3\"",
+      "configHint": "直接編輯完整 TOML，儲存後寫入 ~/.kimi-code/config.toml；上方欄位的修改會同步到這裡。",
       "configRequired": "請填寫 Kimi Code 的 config.toml 內容"
     }
   },
