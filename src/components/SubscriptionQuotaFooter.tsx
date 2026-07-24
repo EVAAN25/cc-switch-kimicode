@@ -21,6 +21,9 @@ interface SubscriptionQuotaViewProps {
   /** 过期提示的 i18n key，默认 subscription.expiredHint（OAuth 重新登录）。
    * API key 鉴权的条目传 subscription.expiredHintApiKey（提示更新 key）。 */
   expiredHintKey?: string;
+  /** 过期标题的 i18n key，默认 subscription.expired（"会话已过期"，OAuth 语境）。
+   * API key 鉴权的条目传 subscription.expiredApiKey（"API Key 已失效"）。 */
+  expiredTitleKey?: string;
   inline?: boolean;
 }
 
@@ -131,6 +134,7 @@ export const SubscriptionQuotaView: React.FC<SubscriptionQuotaViewProps> = ({
   refetch,
   appIdForExpiredHint,
   expiredHintKey = "subscription.expiredHint",
+  expiredTitleKey = "subscription.expired",
   inline = false,
 }) => {
   const { t } = useTranslation();
@@ -156,7 +160,7 @@ export const SubscriptionQuotaView: React.FC<SubscriptionQuotaViewProps> = ({
         <div className="inline-flex items-center gap-2 text-xs rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 shadow-sm">
           <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
             <AlertCircle size={12} />
-            <span>{t("subscription.expired")}</span>
+            <span>{t(expiredTitleKey)}</span>
           </div>
           <button
             onClick={() => refetch()}
@@ -175,7 +179,7 @@ export const SubscriptionQuotaView: React.FC<SubscriptionQuotaViewProps> = ({
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <AlertCircle size={14} />
             <div>
-              <span className="font-medium">{t("subscription.expired")}</span>
+              <span className="font-medium">{t(expiredTitleKey)}</span>
               <span className="ml-2 text-amber-500/70 dark:text-amber-400/70">
                 {t(expiredHintKey, { tool: appIdForExpiredHint })}
               </span>
@@ -243,7 +247,9 @@ export const SubscriptionQuotaView: React.FC<SubscriptionQuotaViewProps> = ({
   // ── inline 模式：紧凑两行显示 ──
   if (inline) {
     return (
-      <div className="flex flex-col items-end gap-1 text-xs whitespace-nowrap flex-shrink-0">
+      // max-w-xs + min-w-0：kimi-code 这类带「(已用 X/Y…)」明细的双 tier 内容
+      // 很宽，不设上限会把卡片头部名称区挤没并向左溢出重叠；明细文本让位截断。
+      <div className="flex min-w-0 max-w-xs flex-col items-end gap-1 text-xs whitespace-nowrap">
         {/* 第一行：查询时间 + 刷新 */}
         <div className="flex items-center gap-2 justify-end">
           <span className="text-[10px] text-muted-foreground/70 flex items-center gap-1">
@@ -266,7 +272,7 @@ export const SubscriptionQuotaView: React.FC<SubscriptionQuotaViewProps> = ({
         </div>
 
         {/* 第二行：各 tier 使用百分比 */}
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden">
           {tiers
             .filter((tier) => !HIDDEN_INLINE_TIERS.has(tier.name))
             .map((tier) => (
@@ -343,28 +349,30 @@ export const TierBadge: React.FC<{
   const hasUsd = tier.usedValueUsd != null && tier.maxValueUsd != null;
 
   return (
-    <div className="flex items-center gap-0.5">
-      <span className="text-gray-500 dark:text-gray-400">{label}:</span>
+    <div className="flex min-w-0 items-center gap-0.5">
+      <span className="flex-shrink-0 text-gray-500 dark:text-gray-400">
+        {label}:
+      </span>
       <span
-        className={`font-semibold tabular-nums ${utilizationColor(tier.utilization)}`}
+        className={`flex-shrink-0 font-semibold tabular-nums ${utilizationColor(tier.utilization)}`}
       >
         {t("subscription.utilization", { value: Math.round(tier.utilization) })}
       </span>
       {detail && (
         <span
-          className="text-muted-foreground/70 ml-0.5 max-w-[220px] truncate"
+          className="text-muted-foreground/70 ml-0.5 min-w-0 max-w-[220px] truncate"
           title={detail}
         >
           ({detail})
         </span>
       )}
       {hasUsd && (
-        <span className="text-muted-foreground/60">
+        <span className="text-muted-foreground/60 flex-shrink-0">
           (${tier.usedValueUsd!.toFixed(2)}/${tier.maxValueUsd!.toFixed(2)})
         </span>
       )}
       {countdown && (
-        <span className="text-muted-foreground/60 ml-0.5 flex items-center gap-px">
+        <span className="text-muted-foreground/60 ml-0.5 flex flex-shrink-0 items-center gap-px">
           <Clock size={10} />
           {countdown}
         </span>

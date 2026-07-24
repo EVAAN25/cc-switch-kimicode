@@ -3028,6 +3028,7 @@
     "extraUsage": "超额用量",
     "expired": "会话已过期",
     "expiredHint": "请运行 {{tool}} 命令刷新登录",
+    "expiredApiKey": "API Key 已失效",
     "expiredHintApiKey": "API Key 已失效或过期，请在该供应商的配置中更新",
     "queryFailed": "查询失败",
     "refresh": "刷新"

@@ -488,8 +488,8 @@ export function ProviderCard({
         </div>
 
         <div className="flex items-center ml-auto min-w-0 gap-3">
-          <div className="ml-auto">
-            <div className="flex items-center gap-1">
+          <div className="ml-auto min-w-0">
+            <div className="flex min-w-0 items-center gap-1">
               {isCopilot ? (
                 <CopilotQuotaFooter
                   meta={provider.meta}

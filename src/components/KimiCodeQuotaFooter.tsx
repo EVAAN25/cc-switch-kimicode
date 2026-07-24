@@ -44,6 +44,9 @@ const KimiCodeQuotaFooter: React.FC<KimiCodeQuotaFooterProps> = ({
       loading={loading}
       refetch={refetch}
       appIdForExpiredHint="kimi-code"
+      expiredTitleKey={
+        hasApiKey ? "subscription.expiredApiKey" : "subscription.expired"
+      }
       expiredHintKey={
         hasApiKey
           ? "subscription.expiredHintApiKey"

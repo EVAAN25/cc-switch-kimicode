@@ -3028,6 +3028,7 @@
     "extraUsage": "Extra Usage",
     "expired": "Session expired",
     "expiredHint": "Run the {{tool}} command to refresh your login",
+    "expiredApiKey": "API key invalid",
     "expiredHintApiKey": "The API key is invalid or expired; update it in this provider's config",
     "queryFailed": "Query failed",
     "refresh": "Refresh"
