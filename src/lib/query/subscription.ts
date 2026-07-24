@@ -10,6 +10,7 @@ import { resolveDisplayUsage, type LastGoodSnapshot } from "./queries";
 import { extractErrorMessage } from "@/utils/errorUtils";
 
 const REFETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const KIMI_CODE_REFETCH_INTERVAL = 2 * 60 * 1000; // 2 minutes（kimi-code 额度刷新更频繁）
 
 export const subscriptionKeys = {
   all: ["subscription"] as const,
@@ -128,10 +129,10 @@ export function useKimiCodeProviderQuota(
     queryKey: ["kimi_code", "quota", providerId],
     queryFn: () => subscriptionApi.getKimiCodeProviderQuota(providerId),
     enabled,
-    refetchInterval: autoQuery ? REFETCH_INTERVAL : false,
+    refetchInterval: autoQuery ? KIMI_CODE_REFETCH_INTERVAL : false,
     refetchIntervalInBackground: autoQuery,
     refetchOnWindowFocus: autoQuery,
-    staleTime: REFETCH_INTERVAL,
+    staleTime: KIMI_CODE_REFETCH_INTERVAL,
     retry: 1,
   });
 
