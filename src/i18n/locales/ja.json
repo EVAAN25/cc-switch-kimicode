@@ -3028,6 +3028,7 @@
     "extraUsage": "超過使用量",
     "expired": "セッション期限切れ",
     "expiredHint": "{{tool}}コマンドを実行してログインを更新してください",
+    "expiredHintApiKey": "APIキーが無効または期限切れです。このプロバイダーの設定で更新してください",
     "queryFailed": "クエリに失敗しました",
     "refresh": "更新"
   }

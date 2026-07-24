@@ -112,6 +112,33 @@ export interface UseCodexOauthQuotaOptions {
 }
 
 /**
+ * Kimi Code 按 provider 条目的订阅额度查询 hook
+ *
+ * 与 `useCodexOauthQuota` 平行：后端用条目自己 TOML 配置里的 api_key/base_url
+ * 调 `/usages`，条目没配 key 时回退本机 OAuth 登录态。
+ *
+ * Query key 包含 providerId，各条目卡片各自查询、互不共享缓存。
+ */
+export function useKimiCodeProviderQuota(
+  providerId: string,
+  options: UseCodexOauthQuotaOptions = {},
+) {
+  const { enabled = true, autoQuery = false } = options;
+  const query = useQuery({
+    queryKey: ["kimi_code", "quota", providerId],
+    queryFn: () => subscriptionApi.getKimiCodeProviderQuota(providerId),
+    enabled,
+    refetchInterval: autoQuery ? REFETCH_INTERVAL : false,
+    refetchIntervalInBackground: autoQuery,
+    refetchOnWindowFocus: autoQuery,
+    staleTime: REFETCH_INTERVAL,
+    retry: 1,
+  });
+
+  return useQuotaKeepLastGood(query, providerId);
+}
+
+/**
  * Codex OAuth (ChatGPT Plus/Pro 反代) 订阅额度查询 hook
  *
  * 与 `useSubscriptionQuota` 平行：数据走 cc-switch 自管的 OAuth token，

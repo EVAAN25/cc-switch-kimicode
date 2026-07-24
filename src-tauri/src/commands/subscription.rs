@@ -40,3 +40,40 @@ pub async fn get_subscription_quota(
     }
     inner
 }
+
+/// 按 provider 条目查询 Kimi Code 用量（条目自身 api_key 优先，OAuth 兜底）。
+///
+/// 与 `get_subscription_quota` 同为 `Ok` 时写快照/刷新托盘的语义，但仅当该
+/// 条目是当前生效供应商时才写——usage_cache 的 subscription 槽位按 appType
+/// 只有一份，非当前条目的快照写进去会让托盘显示成别的账号的额度。
+#[tauri::command(rename_all = "camelCase")]
+pub async fn get_kimi_code_provider_quota(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    provider_id: String,
+) -> Result<SubscriptionQuota, String> {
+    let inner =
+        crate::services::subscription::get_kimi_code_provider_quota(&state, &provider_id).await;
+    if let Ok(snapshot) = &inner {
+        let is_current = state
+            .db
+            .get_current_provider(AppType::KimiCode.as_str())
+            .map(|current| current.as_deref() == Some(provider_id.as_str()))
+            .unwrap_or(false);
+        if is_current {
+            let payload = serde_json::json!({
+                "kind": "subscription",
+                "appType": AppType::KimiCode.as_str(),
+                "data": snapshot,
+            });
+            if let Err(e) = app.emit("usage-cache-updated", payload) {
+                log::error!("emit usage-cache-updated (kimi-code provider quota) 失败: {e}");
+            }
+            state
+                .usage_cache
+                .put_subscription(AppType::KimiCode, snapshot.clone());
+            crate::tray::schedule_tray_refresh(&app);
+        }
+    }
+    inner
+}

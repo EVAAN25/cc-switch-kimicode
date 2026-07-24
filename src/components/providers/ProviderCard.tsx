@@ -14,6 +14,7 @@ import UsageFooter from "@/components/UsageFooter";
 import SubscriptionQuotaFooter from "@/components/SubscriptionQuotaFooter";
 import CopilotQuotaFooter from "@/components/CopilotQuotaFooter";
 import CodexOauthQuotaFooter from "@/components/CodexOauthQuotaFooter";
+import KimiCodeQuotaFooter from "@/components/KimiCodeQuotaFooter";
 import { PROVIDER_TYPES, TEMPLATE_TYPES } from "@/config/constants";
 import { isHermesReadOnlyProvider } from "@/config/hermesProviderPresets";
 import { ProviderHealthBadge } from "@/components/providers/ProviderHealthBadge";
@@ -503,14 +504,23 @@ export function ProviderCard({
                 />
               ) : isOfficial ? (
                 officialSubscriptionEnabled ? (
-                  <SubscriptionQuotaFooter
-                    appId={appId}
-                    inline={true}
-                    isCurrent={isCurrent}
-                    autoQueryInterval={
-                      provider.meta?.usage_script?.autoQueryInterval ?? 0
-                    }
-                  />
+                  appId === "kimi-code" ? (
+                    // Kimi Code 按条目探测：每个条目用自己的 api_key 查 /usages
+                    <KimiCodeQuotaFooter
+                      provider={provider}
+                      inline={true}
+                      isCurrent={isCurrent}
+                    />
+                  ) : (
+                    <SubscriptionQuotaFooter
+                      appId={appId}
+                      inline={true}
+                      isCurrent={isCurrent}
+                      autoQueryInterval={
+                        provider.meta?.usage_script?.autoQueryInterval ?? 0
+                      }
+                    />
+                  )
                 ) : null
               ) : hasMultiplePlans ? (
                 <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
