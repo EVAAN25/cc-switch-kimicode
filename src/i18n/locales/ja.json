@@ -719,6 +719,18 @@
       "copy": "ファイルコピー",
       "symlinkHint": "シンボリックリンクはディスク容量を節約し、リアルタイム同期を有効にします。注意：Windowsでは管理者権限または開発者モードが必要な場合があります"
     },
+    "kimiNotify": {
+      "title": "Kimi Code タスク通知",
+      "description": "Kimi Code のタスク完了時に通知音を再生します（Kimi Code の hooks 設定に書き込みます）",
+      "enabled": "タスク通知を有効化",
+      "noSound": "なし",
+      "preview": "試聴",
+      "events": {
+        "stop": "応答終了",
+        "taskCompleted": "バックグラウンドタスク完了",
+        "subagentStop": "サブタスク完了"
+      }
+    },
     "terminal": {
       "title": "優先ターミナル",
       "description": "ターミナルボタンをクリックした時に使用するターミナルアプリを選択",

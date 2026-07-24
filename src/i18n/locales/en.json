@@ -719,6 +719,18 @@
       "copy": "Copy Files",
       "symlinkHint": "Symlinks save disk space and enable real-time sync. Note: May require admin privileges or Developer Mode on Windows"
     },
+    "kimiNotify": {
+      "title": "Kimi Code Task Notifications",
+      "description": "Play a sound when Kimi Code task milestones complete (written to Kimi Code hooks config)",
+      "enabled": "Enable task notifications",
+      "noSound": "None",
+      "preview": "Preview",
+      "events": {
+        "stop": "Response finished",
+        "taskCompleted": "Background task completed",
+        "subagentStop": "Subtask completed"
+      }
+    },
     "terminal": {
       "title": "Preferred Terminal",
       "description": "Choose which terminal app to use when clicking the terminal button",

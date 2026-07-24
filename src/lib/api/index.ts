@@ -13,6 +13,8 @@ export { proxyApi } from "./proxy";
 export { openclawApi } from "./openclaw";
 export { sessionsApi } from "./sessions";
 export { workspaceApi } from "./workspace";
+export { kimiNotifyApi } from "./kimi-notify";
+export type { KimiNotifySettings } from "./kimi-notify";
 export * as configApi from "./config";
 export * as authApi from "./auth";
 export * as copilotApi from "./copilot";

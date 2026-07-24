@@ -1374,6 +1374,11 @@ pub fn run() {
             // subscription quota
             commands::get_subscription_quota,
             commands::get_kimi_code_provider_quota,
+            // Kimi Code 任务提醒（hooks 音效）
+            commands::list_kimi_notify_sounds,
+            commands::preview_kimi_notify_sound,
+            commands::get_kimi_notify_settings,
+            commands::set_kimi_notify_settings,
             commands::get_codex_oauth_quota,
             commands::get_codex_oauth_models,
             commands::get_xai_oauth_models,
