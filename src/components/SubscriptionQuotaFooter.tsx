@@ -24,6 +24,9 @@ interface SubscriptionQuotaViewProps {
   /** 过期标题的 i18n key，默认 subscription.expired（"会话已过期"，OAuth 语境）。
    * API key 鉴权的条目传 subscription.expiredApiKey（"API Key 已失效"）。 */
   expiredTitleKey?: string;
+  /** inline 模式隐藏「(已用 X/Y，剩余 Z)」明细，只保留百分比。
+   * kimi-code 的 limit 是请求次数而非 token，显示明细会误导。 */
+  hideTierDetails?: boolean;
   inline?: boolean;
 }
 
@@ -135,6 +138,7 @@ export const SubscriptionQuotaView: React.FC<SubscriptionQuotaViewProps> = ({
   appIdForExpiredHint,
   expiredHintKey = "subscription.expiredHint",
   expiredTitleKey = "subscription.expired",
+  hideTierDetails = false,
   inline = false,
 }) => {
   const { t } = useTranslation();
@@ -276,7 +280,12 @@ export const SubscriptionQuotaView: React.FC<SubscriptionQuotaViewProps> = ({
           {tiers
             .filter((tier) => !HIDDEN_INLINE_TIERS.has(tier.name))
             .map((tier) => (
-              <TierBadge key={tier.name} tier={tier} t={t} />
+              <TierBadge
+                key={tier.name}
+                tier={tier}
+                t={t}
+                hideDetails={hideTierDetails}
+              />
             ))}
         </div>
       </div>
@@ -339,12 +348,14 @@ export const SubscriptionQuotaView: React.FC<SubscriptionQuotaViewProps> = ({
 export const TierBadge: React.FC<{
   tier: QuotaTier;
   t: (key: string, options?: Record<string, unknown>) => string;
-}> = ({ tier, t }) => {
+  /** 隐藏「(已用 X/Y，剩余 Z)」明细，只保留百分比（kimi-code 用） */
+  hideDetails?: boolean;
+}> = ({ tier, t, hideDetails = false }) => {
   const label = TIER_I18N_KEYS[tier.name]
     ? t(TIER_I18N_KEYS[tier.name])
     : tier.name;
   const countdown = countdownStr(tier.resetsAt);
-  const detail = formatQuotaDetail(tier, t);
+  const detail = hideDetails ? null : formatQuotaDetail(tier, t);
 
   const hasUsd = tier.usedValueUsd != null && tier.maxValueUsd != null;
 

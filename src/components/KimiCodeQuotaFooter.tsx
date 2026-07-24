@@ -52,6 +52,8 @@ const KimiCodeQuotaFooter: React.FC<KimiCodeQuotaFooterProps> = ({
           ? "subscription.expiredHintApiKey"
           : "subscription.expiredHint"
       }
+      // /usages 返回的 limit 是请求次数而非 token，明细数字会误导，只显示百分比
+      hideTierDetails={true}
       inline={inline}
     />
   );
