@@ -725,6 +725,8 @@
       "enabled": "タスク通知を有効化",
       "noSound": "なし",
       "preview": "試聴",
+      "groupBundled": "内蔵サウンド",
+      "groupSystem": "macOS システムサウンド",
       "events": {
         "stop": "応答終了",
         "taskCompleted": "バックグラウンドタスク完了",

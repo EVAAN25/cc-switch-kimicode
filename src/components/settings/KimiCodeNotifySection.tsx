@@ -8,13 +8,17 @@ import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import {
   kimiNotifyApi,
+  KIMI_NOTIFY_SYSTEM_PREFIX,
   type KimiNotifySettings,
+  type KimiNotifySounds,
 } from "@/lib/api/kimi-notify";
 
 const NO_SOUND = "none";
@@ -36,7 +40,10 @@ const EVENT_ROWS: { key: NotifyEventKey; labelKey: string }[] = [
 export function KimiCodeNotifySection() {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<KimiNotifySettings | null>(null);
-  const [sounds, setSounds] = useState<string[]>([]);
+  const [sounds, setSounds] = useState<KimiNotifySounds>({
+    bundled: [],
+    system: [],
+  });
 
   useEffect(() => {
     kimiNotifyApi
@@ -112,11 +119,31 @@ export function KimiCodeNotifySection() {
                   <SelectItem value={NO_SOUND}>
                     {t("settings.kimiNotify.noSound")}
                   </SelectItem>
-                  {sounds.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel>
+                      {t("settings.kimiNotify.groupBundled")}
+                    </SelectLabel>
+                    {sounds.bundled.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  {sounds.system.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>
+                        {t("settings.kimiNotify.groupSystem")}
+                      </SelectLabel>
+                      {sounds.system.map((name) => (
+                        <SelectItem
+                          key={name}
+                          value={`${KIMI_NOTIFY_SYSTEM_PREFIX}${name}`}
+                        >
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
                 </SelectContent>
               </Select>
               <Button

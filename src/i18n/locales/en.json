@@ -725,6 +725,8 @@
       "enabled": "Enable task notifications",
       "noSound": "None",
       "preview": "Preview",
+      "groupBundled": "Built-in sounds",
+      "groupSystem": "macOS system sounds",
       "events": {
         "stop": "Response finished",
         "taskCompleted": "Background task completed",

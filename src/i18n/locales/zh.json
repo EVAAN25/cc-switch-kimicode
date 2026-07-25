@@ -725,6 +725,8 @@
       "enabled": "启用任务提醒",
       "noSound": "无",
       "preview": "试听",
+      "groupBundled": "内置音效",
+      "groupSystem": "macOS 系统音效",
       "events": {
         "stop": "回复结束",
         "taskCompleted": "后台任务完成",
