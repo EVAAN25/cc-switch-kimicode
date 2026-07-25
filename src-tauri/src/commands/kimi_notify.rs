@@ -26,8 +26,20 @@ const SYSTEM_SOUND_PREFIX: &str = "system:";
 const SYSTEM_SOUNDS_DIR: &str = "/System/Library/Sounds";
 /// macOS 系统音效白名单（仅 macOS 可用；白名单同时用于防路径注入）。
 const SYSTEM_SOUND_NAMES: [&str; 14] = [
-    "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero", "Morse", "Ping", "Pop", "Purr",
-    "Sosumi", "Submarine", "Tink",
+    "Basso",
+    "Blow",
+    "Bottle",
+    "Frog",
+    "Funk",
+    "Glass",
+    "Hero",
+    "Morse",
+    "Ping",
+    "Pop",
+    "Purr",
+    "Sosumi",
+    "Submarine",
+    "Tink",
 ];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -273,10 +285,12 @@ pub async fn set_kimi_notify_settings(
     app: AppHandle,
     settings: KimiNotifySettings,
 ) -> Result<bool, String> {
-    tauri::async_runtime::spawn_blocking(move || set_kimi_notify_settings_blocking(&app, &settings))
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        set_kimi_notify_settings_blocking(&app, &settings)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
     Ok(true)
 }
 
@@ -318,9 +332,8 @@ fn set_kimi_notify_settings_blocking(
         .collect();
     let sounds_dir = kimi_code_config::get_kimi_code_home().join("sounds");
     if settings.enabled && !bundled_selected.is_empty() {
-        let bundled = bundled_sounds_dir(app).map_err(|e| {
-            AppError::localized("kimi_code.notify.sounds.missing", e.clone(), e)
-        })?;
+        let bundled = bundled_sounds_dir(app)
+            .map_err(|e| AppError::localized("kimi_code.notify.sounds.missing", e.clone(), e))?;
         std::fs::create_dir_all(&sounds_dir).map_err(|e| AppError::io(&sounds_dir, e))?;
         for name in bundled_selected {
             let source = bundled.join(format!("{name}.wav"));
@@ -361,7 +374,11 @@ fn extract_sound_name(command: &str) -> Option<String> {
         .into_iter()
         .rev()
         .collect();
-    if name.is_empty() { None } else { Some(name) }
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
 }
 
 /// 从 command 里提取 macOS 系统音效名（/System/Library/Sounds/<Name>.aiff）。
@@ -411,8 +428,7 @@ fn legacy_notify_sound(command: &str) -> Option<String> {
         return Some(format!("{SYSTEM_SOUND_PREFIX}{name}"));
     }
     if command.contains("terminal-notifier") {
-        return extract_tn_sound_arg(command)
-            .map(|name| format!("{SYSTEM_SOUND_PREFIX}{name}"));
+        return extract_tn_sound_arg(command).map(|name| format!("{SYSTEM_SOUND_PREFIX}{name}"));
     }
     None
 }
@@ -611,7 +627,10 @@ api_key = "sk-test"
         );
         let rendered =
             render_notify_hooks_text(&text, &KimiNotifySettings::default(), &sounds_dir()).unwrap();
-        assert!(rendered.contains("notify-send"), "非受管理 hook 被误删: {rendered}");
+        assert!(
+            rendered.contains("notify-send"),
+            "非受管理 hook 被误删: {rendered}"
+        );
         assert!(!rendered.contains(MANAGED_HOOK_MARKER));
         assert!(!rendered.contains("ding.wav"));
         assert!(rendered.contains("default_model"));
@@ -687,7 +706,11 @@ api_key = "sk-test"
         };
         let once = render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir()).unwrap();
         let twice = render_notify_hooks_text(&once, &settings, &sounds_dir()).unwrap();
-        assert_eq!(twice.matches("[[hooks]]").count(), 3, "重复设置翻倍: {twice}");
+        assert_eq!(
+            twice.matches("[[hooks]]").count(),
+            3,
+            "重复设置翻倍: {twice}"
+        );
         assert_eq!(twice.matches(MANAGED_HOOK_MARKER).count(), 3);
         assert_eq!(once, twice, "重复设置结果不一致");
     }
@@ -756,7 +779,11 @@ api_key = "sk-test"
             subagent_stop_sound: Some("system:Purr".to_string()),
         };
         let rendered = render_notify_hooks_text(&text, &settings, &sounds_dir()).unwrap();
-        assert_eq!(rendered.matches("[[hooks]]").count(), 1, "遗产 hook 未被接管: {rendered}");
+        assert_eq!(
+            rendered.matches("[[hooks]]").count(),
+            1,
+            "遗产 hook 未被接管: {rendered}"
+        );
         assert_eq!(rendered.matches(MANAGED_HOOK_MARKER).count(), 1);
         assert!(!rendered.contains("旧消息"), "旧 hook 未被删除: {rendered}");
         // 往返解析：遗产 hook 被新格式重写后仍识别为 system:Purr
@@ -776,7 +803,10 @@ api_key = "sk-test"
             subagent_stop_sound: None,
         };
         let rendered = render_notify_hooks_text(&text, &settings, &sounds_dir()).unwrap();
-        assert!(rendered.contains("node ~/x.js"), "自定义脚本 hook 被误删: {rendered}");
+        assert!(
+            rendered.contains("node ~/x.js"),
+            "自定义脚本 hook 被误删: {rendered}"
+        );
         // 遗产 afplay hook 被替换为受管理格式
         assert!(!rendered.contains("/System/Library/Sounds/Glass.aiff"));
         assert_eq!(rendered.matches(MANAGED_HOOK_MARKER).count(), 1);
@@ -786,9 +816,15 @@ api_key = "sk-test"
     #[test]
     fn system_sound_command_prefers_banner_with_sound_fallback() {
         let command = notify_hook_command("system:Ping", "Stop", &sounds_dir()).unwrap();
-        assert!(command.contains("command -v terminal-notifier"), "{command}");
+        assert!(
+            command.contains("command -v terminal-notifier"),
+            "{command}"
+        );
         assert!(command.contains("-sound \"Ping\""), "{command}");
-        assert!(command.contains("-message \"可以回来看结果了\""), "{command}");
+        assert!(
+            command.contains("-message \"可以回来看结果了\""),
+            "{command}"
+        );
         // 纯声音兜底分支
         assert!(
             command.contains("|| afplay \"/System/Library/Sounds/Ping.aiff\""),

@@ -364,9 +364,8 @@ base_url = "https://api.kimi.com/coding/v1"
 
     #[test]
     fn distinct_hooks_both_kept() {
-        let existing = format!(
-            "{PROVIDER_TEMPLATE}\n[[hooks]]\nevent = \"Stop\"\ncommand = \"a.sh\"\n"
-        );
+        let existing =
+            format!("{PROVIDER_TEMPLATE}\n[[hooks]]\nevent = \"Stop\"\ncommand = \"a.sh\"\n");
         let new_text = format!(
             "{PROVIDER_TEMPLATE}\n[[hooks]]\nevent = \"SubagentStop\"\ncommand = \"b.sh\"\n"
         );
