@@ -1364,7 +1364,7 @@ fn kimi_code_quota_from_body(body: &serde_json::Value) -> SubscriptionQuota {
             // Kimi 的 limits 通常按 5 小时窗口排在首位；优先使用显式
             // duration/name 识别，只有没有标签时才使用首项兜底。
             let is_five_hour =
-                kimi_limit_is_five_hour(item, detail, window) || (index == 0 && limits.len() > 0);
+                kimi_limit_is_five_hour(item, detail, window) || (index == 0 && !limits.is_empty());
             if !is_five_hour || five_hour_seen {
                 continue;
             }
