@@ -364,7 +364,7 @@ jobs:
           echo "✅ Styled DMG created: $NEW_DMG"
 
       - name: Notarize macOS DMG
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && env.APPLE_SIGNING_IDENTITY != '-'
         shell: bash
         timeout-minutes: 30
         env:
