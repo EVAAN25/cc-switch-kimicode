@@ -721,7 +721,7 @@
     },
     "kimiNotify": {
       "title": "Kimi Code 任务提醒",
-      "description": "在 Kimi Code 任务节点完成时播放提示音（写入 Kimi Code hooks 配置）",
+      "description": "完成时弹出带任务摘要的横幅并播放提示音，iTerm2 不在前台时程序坞图标会跳动（写入 Kimi Code hooks 配置）",
       "enabled": "启用任务提醒",
       "noSound": "无",
       "preview": "试听",

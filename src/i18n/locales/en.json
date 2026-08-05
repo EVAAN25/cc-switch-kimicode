@@ -721,7 +721,7 @@
     },
     "kimiNotify": {
       "title": "Kimi Code Task Notifications",
-      "description": "Play a sound when Kimi Code task milestones complete (written to Kimi Code hooks config)",
+      "description": "Shows a banner with the task summary and plays a sound on completion; bounces the Dock icon when iTerm2 is not focused (written to Kimi Code hooks config)",
       "enabled": "Enable task notifications",
       "noSound": "None",
       "preview": "Preview",

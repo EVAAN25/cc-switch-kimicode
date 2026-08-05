@@ -170,25 +170,96 @@ fn event_message(event: &str) -> &'static str {
     }
 }
 
-/// 系统音效 hook command（macOS）：terminal-notifier 横幅+声音优先，纯 afplay 兜底。
+/// 受管理 hook 调用的通知脚本文件名（{kimi_code_home}/hooks/ 下）。
+const NOTIFY_SCRIPT_NAME: &str = "ccswitch-notify.sh";
+
+/// 通知脚本完整路径。
+fn notify_script_path() -> PathBuf {
+    kimi_code_config::get_kimi_code_home()
+        .join("hooks")
+        .join(NOTIFY_SCRIPT_NAME)
+}
+
+/// 通知脚本内容：横幅带任务摘要（description / session_title），
+/// iTerm2 不在前台时 dock 图标跳一下。terminal-notifier 缺失时 afplay 兜底。
 #[cfg(target_os = "macos")]
-fn system_notify_command(name: &str, message: &str) -> Option<String> {
+const NOTIFY_SCRIPT: &str = r#"#!/bin/bash
+# cc-switch 管理的 kimi-code 任务提醒脚本：横幅带任务摘要 + iTerm2 dock 弹跳
+# 用法: ccswitch-notify.sh <横幅文字> <系统音效名>
+LABEL="$1"
+SOUND="${2:-Ping}"
+
+input=$(cat)
+
+# 优先取任务描述，其次会话标题；压缩空白并截断，防止横幅过长
+SUMMARY=$(printf '%s' "$input" | /usr/bin/python3 -c 'import sys,json; d=json.loads(sys.stdin.read() or "{}"); print(" ".join(str(d.get("description") or d.get("session_title") or "").split())[:100])' 2>/dev/null)
+
+MSG="$LABEL"
+[ -n "$SUMMARY" ] && MSG="$LABEL：$SUMMARY"
+
+TN=$(command -v terminal-notifier || echo /opt/homebrew/bin/terminal-notifier)
+if [ -x "$TN" ]; then
+  "$TN" -title "Kimi Code" -message "$MSG" -sound "$SOUND"
+else
+  afplay "/System/Library/Sounds/${SOUND}.aiff" &
+fi
+
+# iTerm2 不在前台时 dock 图标跳一下（hook 无控制终端，沿祖先进程链找 tty）
+pid=$PPID
+tty=""
+is_iterm=0
+while [ -n "$pid" ] && [ "$pid" != "1" ] && [ "$pid" != "0" ]; do
+  comm=$(ps -o comm= -p "$pid" 2>/dev/null)
+  case "$comm" in *iTerm*) is_iterm=1 ;; esac
+  if [ -z "$tty" ]; then
+    t=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d " ")
+    [ -n "$t" ] && [ "$t" != "??" ] && tty="/dev/$t"
+  fi
+  pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d " ")
+done
+[ "$is_iterm" = "1" ] && [ -n "$tty" ] && [ -w "$tty" ] && printf '\033]1337;RequestAttention=once\007' > "$tty"
+exit 0
+"#;
+
+/// 把通知脚本写入 {kimi_code_home}/hooks/ 并赋可执行权限（幂等，每次保存刷新）。
+#[cfg(target_os = "macos")]
+fn ensure_notify_script() -> Result<PathBuf, AppError> {
+    use std::os::unix::fs::PermissionsExt;
+    let path = notify_script_path();
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| AppError::io(dir, e))?;
+    }
+    std::fs::write(&path, NOTIFY_SCRIPT).map_err(|e| AppError::io(&path, e))?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+        .map_err(|e| AppError::io(&path, e))?;
+    Ok(path)
+}
+
+/// 系统音效 hook command（macOS）：调用通知脚本（横幅+摘要+dock 弹跳）。
+#[cfg(target_os = "macos")]
+fn system_notify_command(name: &str, message: &str, script_path: &Path) -> Option<String> {
     Some(format!(
-        "TN=$(command -v terminal-notifier || echo /opt/homebrew/bin/terminal-notifier); [ -x \"$TN\" ] && \"$TN\" -title \"Kimi Code\" -message \"{message}\" -sound \"{name}\" || afplay \"{SYSTEM_SOUNDS_DIR}/{name}.aiff\""
+        "\"{}\" \"{message}\" \"{name}\"",
+        script_path.to_string_lossy()
     ))
 }
 
 /// 非 macOS 平台不生成系统音效命令。
 #[cfg(not(target_os = "macos"))]
-fn system_notify_command(name: &str, message: &str) -> Option<String> {
-    let _ = (name, message);
+fn system_notify_command(name: &str, message: &str, script_path: &Path) -> Option<String> {
+    let _ = (name, message, script_path);
     None
 }
 
 /// 按设置值生成 hook command；无效值（如 system: 白名单外、非法字符）返回 None 跳过。
-fn notify_hook_command(sound: &str, event: &str, sounds_dir: &Path) -> Option<String> {
+fn notify_hook_command(
+    sound: &str,
+    event: &str,
+    sounds_dir: &Path,
+    script_path: &Path,
+) -> Option<String> {
     if let Some(system_name) = parse_system_sound(sound) {
-        return system_notify_command(system_name, event_message(event));
+        return system_notify_command(system_name, event_message(event), script_path);
     }
     if sound.starts_with(SYSTEM_SOUND_PREFIX) || !is_valid_sound_name(sound) {
         return None;
@@ -349,9 +420,19 @@ fn set_kimi_notify_settings_blocking(
         }
     }
 
+    // a2. macOS 系统音效走通知脚本（横幅带摘要 + dock 弹跳），保存时刷新落盘
+    #[cfg(target_os = "macos")]
+    {
+        let needs_script =
+            settings.enabled && selected.iter().any(|n| parse_system_sound(n).is_some());
+        if needs_script {
+            ensure_notify_script()?;
+        }
+    }
+
     // b/c. 读当前文本，删除受管理 hooks 后按选择追加
     let text = std::fs::read_to_string(&config_path).map_err(|e| AppError::io(&config_path, e))?;
-    let rendered = render_notify_hooks_text(&text, settings, &sounds_dir)?;
+    let rendered = render_notify_hooks_text(&text, settings, &sounds_dir, &notify_script_path())?;
 
     // d. 校验后写入（不能用 write_kimi_code_config_text：它会把磁盘上刚删掉的
     //    受管理 hooks 再合并回来）
@@ -404,8 +485,29 @@ fn extract_tn_sound_arg(command: &str) -> Option<String> {
     is_valid_sound_name(name).then(|| name.to_string())
 }
 
+/// 从通知脚本调用命令（"<path>/...notify.sh" "<文案>" "<音效名>"）里提取
+/// 最后一个双引号参数，即系统音效名；须在白名单内才认。
+fn extract_script_sound_arg(command: &str) -> Option<String> {
+    if !command.contains("notify.sh") {
+        return None;
+    }
+    let mut last: Option<&str> = None;
+    let mut rest = command;
+    while let Some(start) = rest.find('"') {
+        let after = &rest[start + 1..];
+        let end = after.find('"')?;
+        last = Some(&after[..end]);
+        rest = &after[end + 1..];
+    }
+    last.filter(|name| SYSTEM_SOUND_NAMES.contains(name))
+        .map(|s| s.to_string())
+}
+
 /// 从受管理 hook 的 command 提取完整设置值（system:<Name> 或内置名）。
 fn extract_sound_value(command: &str) -> Option<String> {
+    if let Some(name) = extract_script_sound_arg(command) {
+        return Some(format!("{SYSTEM_SOUND_PREFIX}{name}"));
+    }
     if let Some(name) = extract_system_aiff_name(command) {
         return Some(format!("{SYSTEM_SOUND_PREFIX}{name}"));
     }
@@ -504,6 +606,7 @@ fn render_notify_hooks_text(
     text: &str,
     settings: &KimiNotifySettings,
     sounds_dir: &Path,
+    script_path: &Path,
 ) -> Result<String, AppError> {
     let mut doc = text.parse::<toml_edit::DocumentMut>().map_err(|e| {
         AppError::localized(
@@ -549,12 +652,14 @@ fn render_notify_hooks_text(
         })?;
 
         if let Some(name) = &settings.stop_sound {
-            if let Some(command) = notify_hook_command(name, "Stop", sounds_dir) {
+            if let Some(command) = notify_hook_command(name, "Stop", sounds_dir, script_path) {
                 hooks.push(notify_hook_table("Stop", None, command));
             }
         }
         if let Some(name) = &settings.task_completed_sound {
-            if let Some(command) = notify_hook_command(name, "Notification", sounds_dir) {
+            if let Some(command) =
+                notify_hook_command(name, "Notification", sounds_dir, script_path)
+            {
                 hooks.push(notify_hook_table(
                     "Notification",
                     Some(TASK_COMPLETED_MATCHER),
@@ -563,7 +668,9 @@ fn render_notify_hooks_text(
             }
         }
         if let Some(name) = &settings.subagent_stop_sound {
-            if let Some(command) = notify_hook_command(name, "SubagentStop", sounds_dir) {
+            if let Some(command) =
+                notify_hook_command(name, "SubagentStop", sounds_dir, script_path)
+            {
                 hooks.push(notify_hook_table("SubagentStop", None, command));
             }
         }
@@ -578,6 +685,10 @@ mod tests {
 
     fn sounds_dir() -> PathBuf {
         PathBuf::from("/home/user/.kimi-code/sounds")
+    }
+
+    fn script_path() -> PathBuf {
+        PathBuf::from("/Users/x/.kimi-code/hooks/ccswitch-notify.sh")
     }
 
     const BASE_CONFIG: &str = r#"default_model = "kimi-code/k3"
@@ -625,8 +736,13 @@ api_key = "sk-test"
             "{BASE_CONFIG}\n[[hooks]]\nevent = \"Stop\"\ncommand = \"/usr/bin/notify-send hi\"\n\n{}\n",
             managed_hook("Stop", None, "ding"),
         );
-        let rendered =
-            render_notify_hooks_text(&text, &KimiNotifySettings::default(), &sounds_dir()).unwrap();
+        let rendered = render_notify_hooks_text(
+            &text,
+            &KimiNotifySettings::default(),
+            &sounds_dir(),
+            &script_path(),
+        )
+        .unwrap();
         assert!(
             rendered.contains("notify-send"),
             "非受管理 hook 被误删: {rendered}"
@@ -645,7 +761,9 @@ api_key = "sk-test"
             task_completed_sound: Some("chime".to_string()),
             subagent_stop_sound: Some("success".to_string()),
         };
-        let rendered = render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir()).unwrap();
+        let rendered =
+            render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir(), &script_path())
+                .unwrap();
         assert_eq!(rendered.matches("[[hooks]]").count(), 3, "{rendered}");
         assert_eq!(rendered.matches(MANAGED_HOOK_MARKER).count(), 3);
         assert!(rendered.contains("event = \"Stop\""));
@@ -681,7 +799,9 @@ api_key = "sk-test"
             task_completed_sound: Some("chime".to_string()),
             subagent_stop_sound: None,
         };
-        let rendered = render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir()).unwrap();
+        let rendered =
+            render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir(), &script_path())
+                .unwrap();
         assert_eq!(rendered.matches("[[hooks]]").count(), 1, "{rendered}");
         assert!(rendered.contains("Notification"));
         assert!(!rendered.contains("SubagentStop"));
@@ -689,9 +809,13 @@ api_key = "sk-test"
 
     #[test]
     fn render_disabled_leaves_no_hooks_key() {
-        let rendered =
-            render_notify_hooks_text(BASE_CONFIG, &KimiNotifySettings::default(), &sounds_dir())
-                .unwrap();
+        let rendered = render_notify_hooks_text(
+            BASE_CONFIG,
+            &KimiNotifySettings::default(),
+            &sounds_dir(),
+            &script_path(),
+        )
+        .unwrap();
         assert!(!rendered.contains("[[hooks]]"));
         assert!(!rendered.contains("hooks"));
     }
@@ -704,8 +828,10 @@ api_key = "sk-test"
             task_completed_sound: Some("chime".to_string()),
             subagent_stop_sound: Some("gentle".to_string()),
         };
-        let once = render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir()).unwrap();
-        let twice = render_notify_hooks_text(&once, &settings, &sounds_dir()).unwrap();
+        let once = render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir(), &script_path())
+            .unwrap();
+        let twice =
+            render_notify_hooks_text(&once, &settings, &sounds_dir(), &script_path()).unwrap();
         assert_eq!(
             twice.matches("[[hooks]]").count(),
             3,
@@ -778,7 +904,8 @@ api_key = "sk-test"
             task_completed_sound: None,
             subagent_stop_sound: Some("system:Purr".to_string()),
         };
-        let rendered = render_notify_hooks_text(&text, &settings, &sounds_dir()).unwrap();
+        let rendered =
+            render_notify_hooks_text(&text, &settings, &sounds_dir(), &script_path()).unwrap();
         assert_eq!(
             rendered.matches("[[hooks]]").count(),
             1,
@@ -802,7 +929,8 @@ api_key = "sk-test"
             task_completed_sound: None,
             subagent_stop_sound: None,
         };
-        let rendered = render_notify_hooks_text(&text, &settings, &sounds_dir()).unwrap();
+        let rendered =
+            render_notify_hooks_text(&text, &settings, &sounds_dir(), &script_path()).unwrap();
         assert!(
             rendered.contains("node ~/x.js"),
             "自定义脚本 hook 被误删: {rendered}"
@@ -814,27 +942,58 @@ api_key = "sk-test"
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn system_sound_command_prefers_banner_with_sound_fallback() {
-        let command = notify_hook_command("system:Ping", "Stop", &sounds_dir()).unwrap();
-        assert!(
-            command.contains("command -v terminal-notifier"),
-            "{command}"
-        );
-        assert!(command.contains("-sound \"Ping\""), "{command}");
-        assert!(
-            command.contains("-message \"可以回来看结果了\""),
-            "{command}"
-        );
-        // 纯声音兜底分支
-        assert!(
-            command.contains("|| afplay \"/System/Library/Sounds/Ping.aiff\""),
-            "{command}"
-        );
+    fn system_sound_command_calls_notify_script() {
+        let command =
+            notify_hook_command("system:Ping", "Stop", &sounds_dir(), &script_path()).unwrap();
+        // 新格式：调用通知脚本（横幅带摘要 + dock 弹跳），参数为文案与音效名
+        assert!(command.contains("ccswitch-notify.sh"), "{command}");
+        assert!(command.contains("\"可以回来看结果了\""), "{command}");
+        assert!(command.contains("\"Ping\""), "{command}");
         // 事件文案映射
-        let sub = notify_hook_command("system:Pop", "SubagentStop", &sounds_dir()).unwrap();
-        assert!(sub.contains("-message \"子任务完成\""), "{sub}");
-        let notif = notify_hook_command("system:Pop", "Notification", &sounds_dir()).unwrap();
-        assert!(notif.contains("-message \"后台任务完成\""), "{notif}");
+        let sub = notify_hook_command("system:Pop", "SubagentStop", &sounds_dir(), &script_path())
+            .unwrap();
+        assert!(sub.contains("\"子任务完成\""), "{sub}");
+        let notif =
+            notify_hook_command("system:Pop", "Notification", &sounds_dir(), &script_path())
+                .unwrap();
+        assert!(notif.contains("\"后台任务完成\""), "{notif}");
+    }
+
+    #[test]
+    fn script_sound_arg_extracts_last_quoted_token() {
+        // 新格式（ccswitch-notify.sh）
+        assert_eq!(
+            extract_script_sound_arg(
+                "\"/Users/x/.kimi-code/hooks/ccswitch-notify.sh\" \"后台任务完成\" \"Sosumi\" # ccswitch-notify"
+            ),
+            Some("Sosumi".to_string())
+        );
+        // 过渡期的手写 notify.sh 格式同样识别
+        assert_eq!(
+            extract_script_sound_arg(
+                "/Users/x/.kimi-code/hooks/notify.sh \"子任务完成\" \"Pop\" # ccswitch-notify"
+            ),
+            Some("Pop".to_string())
+        );
+        // 白名单外不认
+        assert_eq!(
+            extract_script_sound_arg(
+                "\"/Users/x/.kimi-code/hooks/ccswitch-notify.sh\" \"x\" \"NotASound\""
+            ),
+            None
+        );
+        // 非脚本命令不认
+        assert_eq!(extract_script_sound_arg("afplay \"/tmp/ding.wav\""), None);
+    }
+
+    #[test]
+    fn parse_recognizes_script_hook_format() {
+        let text = format!(
+            "{BASE_CONFIG}\n[[hooks]]\nevent = \"Stop\"\ncommand = \"\\\"/Users/x/.kimi-code/hooks/ccswitch-notify.sh\\\" \\\"可以回来看结果了\\\" \\\"Ping\\\" {MANAGED_HOOK_MARKER}\"\n"
+        );
+        let settings = parse_notify_settings_text(&text);
+        assert!(settings.enabled);
+        assert_eq!(settings.stop_sound.as_deref(), Some("system:Ping"));
     }
 
     #[test]
@@ -849,8 +1008,10 @@ api_key = "sk-test"
         assert!(!is_valid_sound_value("system:NotASound"));
         assert!(!is_valid_sound_value("../ding"));
         // 非法值不生成 hook command
-        assert!(notify_hook_command("system:../etc", "Stop", &sounds_dir()).is_none());
-        assert!(notify_hook_command("../ding", "Stop", &sounds_dir()).is_none());
+        assert!(
+            notify_hook_command("system:../etc", "Stop", &sounds_dir(), &script_path()).is_none()
+        );
+        assert!(notify_hook_command("../ding", "Stop", &sounds_dir(), &script_path()).is_none());
     }
 
     #[cfg(target_os = "macos")]
@@ -862,12 +1023,15 @@ api_key = "sk-test"
             task_completed_sound: None,
             subagent_stop_sound: None,
         };
-        let rendered = render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir()).unwrap();
+        let rendered =
+            render_notify_hooks_text(BASE_CONFIG, &settings, &sounds_dir(), &script_path())
+                .unwrap();
         assert_eq!(rendered.matches("[[hooks]]").count(), 1, "{rendered}");
         let parsed = parse_notify_settings_text(&rendered);
         assert_eq!(parsed.stop_sound.as_deref(), Some("system:Ping"));
         // 幂等
-        let twice = render_notify_hooks_text(&rendered, &settings, &sounds_dir()).unwrap();
+        let twice =
+            render_notify_hooks_text(&rendered, &settings, &sounds_dir(), &script_path()).unwrap();
         assert_eq!(rendered, twice);
     }
 }

@@ -721,7 +721,7 @@
     },
     "kimiNotify": {
       "title": "Kimi Code タスク通知",
-      "description": "Kimi Code のタスク完了時に通知音を再生します（Kimi Code の hooks 設定に書き込みます）",
+      "description": "完了時にタスク概要付きのバナーを表示して通知音を再生します。iTerm2 が前面にないときは Dock アイコンが跳ねます（Kimi Code の hooks 設定に書き込みます）",
       "enabled": "タスク通知を有効化",
       "noSound": "なし",
       "preview": "試聴",

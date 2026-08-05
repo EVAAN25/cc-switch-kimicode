@@ -721,7 +721,7 @@
     },
     "kimiNotify": {
       "title": "Kimi Code 任務提醒",
-      "description": "在 Kimi Code 任務節點完成時播放提示音（寫入 Kimi Code hooks 設定）",
+      "description": "完成時彈出附帶任務摘要的橫幅並播放提示音，iTerm2 不在前景時 Dock 圖示會跳動（寫入 Kimi Code hooks 設定）",
       "enabled": "啟用任務提醒",
       "noSound": "無",
       "preview": "試聽",
