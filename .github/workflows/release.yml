@@ -240,11 +240,14 @@ jobs:
         timeout-minutes: 60
         env:
           APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+          # 仅真签名时注入公证凭据；ad-hoc 构建留空，避免 tauri 误触发公证
+          if [ "${APPLE_SIGNING_IDENTITY:--}" != "-" ]; then
+            export APPLE_ID="${{ secrets.APPLE_ID }}"
+            export APPLE_PASSWORD="${{ secrets.APPLE_PASSWORD }}"
+            export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
+          fi
           max_attempts=3
           for attempt in $(seq 1 "$max_attempts"); do
             echo "=== macOS build/notarization attempt ${attempt}/${max_attempts} ==="
