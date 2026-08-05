@@ -430,10 +430,14 @@ jobs:
           echo "=== Verifying .app: $APP_PATH ==="
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           echo "✅ codesign verification passed"
-          spctl -a -t exec -vv "$APP_PATH"
-          echo "✅ spctl assessment passed"
-          xcrun stapler validate "$APP_PATH"
-          echo "✅ .app stapler validation passed"
+          if [ "${APPLE_SIGNING_IDENTITY:--}" != "-" ]; then
+            spctl -a -t exec -vv "$APP_PATH"
+            echo "✅ spctl assessment passed"
+            xcrun stapler validate "$APP_PATH"
+            echo "✅ .app stapler validation passed"
+          else
+            echo "ℹ️ ad-hoc 签名构建，跳过 spctl / stapler 校验"
+          fi
 
           # Verify .dmg (from release-assets/, created by create-dmg + notarized)
           DMG_PATH=$(find release-assets -maxdepth 1 -name "*.dmg" -type f | head -1 || true)
@@ -441,10 +445,14 @@ jobs:
             echo "=== Verifying .dmg: $DMG_PATH ==="
             codesign --verify --verbose=2 "$DMG_PATH"
             echo "✅ .dmg codesign verification passed"
-            spctl -a -t open --context context:primary-signature -vv "$DMG_PATH"
-            echo "✅ .dmg spctl assessment passed"
-            xcrun stapler validate "$DMG_PATH"
-            echo "✅ .dmg stapler validation passed"
+            if [ "${APPLE_SIGNING_IDENTITY:--}" != "-" ]; then
+              spctl -a -t open --context context:primary-signature -vv "$DMG_PATH"
+              echo "✅ .dmg spctl assessment passed"
+              xcrun stapler validate "$DMG_PATH"
+              echo "✅ .dmg stapler validation passed"
+            else
+              echo "ℹ️ ad-hoc 签名构建，跳过 .dmg spctl / stapler 校验"
+            fi
           else
             echo "❌ No .dmg found for verification — release would ship without verified DMG" >&2
             exit 1
