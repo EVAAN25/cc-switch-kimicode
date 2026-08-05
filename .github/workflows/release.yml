@@ -191,6 +191,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # fork 无 Apple 开发者证书：跳过导入，构建 ad-hoc 签名包
+          if [ -z "${{ secrets.APPLE_CERTIFICATE }}" ]; then
+            echo "ℹ️ APPLE_CERTIFICATE 未配置，跳过证书导入（ad-hoc 签名，不公证）"
+            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+            exit 0
+          fi
           # Decode .p12 certificate from base64
           CERT_PATH="$RUNNER_TEMP/certificate.p12"
           printf '%s' "${{ secrets.APPLE_CERTIFICATE }}" | (base64 --decode 2>/dev/null || base64 -D) > "$CERT_PATH"
@@ -264,10 +270,11 @@ jobs:
           WINDOWS_RELEASE_ARCH: ${{ matrix.arch || 'x86_64' }}
         run: |
           $ErrorActionPreference = 'Stop'
+          # WiX light.exe 在 windows runner 上已坏（同 windows-build.yml），统一走 NSIS
           if ($env:WINDOWS_RELEASE_ARCH -eq 'arm64') {
-            pnpm tauri build --target aarch64-pc-windows-msvc --bundles msi
+            pnpm tauri build --target aarch64-pc-windows-msvc --bundles nsis
           } else {
-            pnpm tauri build
+            pnpm tauri build --bundles nsis
           }
 
       - name: Build Tauri App (Linux)
@@ -304,9 +311,13 @@ jobs:
             exit 1
           fi
 
-          # Staple notarization ticket to .app (Tauri already notarized it)
-          xcrun stapler staple "$APP_PATH"
-          echo "✅ .app stapled"
+          # Staple notarization ticket（仅真签名构建；ad-hoc 跳过）
+          if [ "${APPLE_SIGNING_IDENTITY:--}" != "-" ]; then
+            xcrun stapler staple "$APP_PATH"
+            echo "✅ .app stapled"
+          else
+            echo "ℹ️ ad-hoc 签名构建，跳过 stapler"
+          fi
 
           # 1) Collect .tar.gz (updater artifact)
           NEW_TAR_GZ="CC-Switch-${VERSION}-macOS.tar.gz"
@@ -449,7 +460,7 @@ jobs:
           $targetRoot = if ($isArm64) { 'src-tauri/target/aarch64-pc-windows-msvc/release' } else { 'src-tauri/target/release' }
           $assetSuffix = if ($isArm64) { '-arm64' } else { '' }
 
-          # 仅打包 MSI 安装器 + .sig（用于 Updater）
+          # 安装器：MSI 优先，NSIS 兜底（WiX 在 runner 上已坏，构建走 NSIS）
           $msi = Get-ChildItem -Path (Join-Path $targetRoot 'bundle/msi') -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -eq $msi) {
             # 兜底：全局搜索 .msi
@@ -463,15 +474,29 @@ jobs:
             if (Test-Path $sigPath) {
               Copy-Item $sigPath (Join-Path release-assets ("$dest.sig"))
               Write-Host "Signature copied: $dest.sig"
-            } elseif ($isArm64) {
-              throw "Signature not found for $($msi.Name)"
             } else {
               Write-Warning "Signature not found for $($msi.Name)"
             }
-          } elseif ($isArm64) {
-            throw 'No Windows ARM64 MSI installer found'
-          } else {
-            Write-Warning 'No Windows MSI installer found'
+          }
+
+          # NSIS 安装器 + .sig（用于 Updater）
+          $nsis = Get-ChildItem -Path (Join-Path $targetRoot 'bundle/nsis') -Recurse -Include *-setup.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -ne $nsis) {
+            $dest = "CC-Switch-$VERSION-Windows$assetSuffix-setup.exe"
+            Copy-Item $nsis.FullName (Join-Path release-assets $dest)
+            Write-Host "NSIS installer copied: $dest"
+            $sigPath = "$($nsis.FullName).sig"
+            if (Test-Path $sigPath) {
+              Copy-Item $sigPath (Join-Path release-assets ("$dest.sig"))
+              Write-Host "Signature copied: $dest.sig"
+            } else {
+              Write-Warning "Signature not found for $($nsis.Name)"
+            }
+          } elseif ($null -eq $msi) {
+            if ($isArm64) {
+              throw 'No Windows ARM64 installer (msi/nsis) found'
+            }
+            Write-Warning 'No Windows installer (msi/nsis) found'
           }
 
           # 绿色版（portable）：仅可执行文件打 zip（不参与 Updater）
