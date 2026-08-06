@@ -29,3 +29,18 @@ copilot-api
 .history
 CODEBUDDY.md
 mainWindow.js
+
+# --- fork (cc-switch-kimicode) additions ---
+# 构建产物（含防 iCloud 挪目录的本地软链，trailing-slash 规则匹配不到 symlink）
+src-tauri/target
+node_modules
+# 签名/密钥材料绝不入库
+*.key
+*.p12
+*.p8
+*.mobileprovision
+# 发布产物临时目录
+release-assets/
+# 环境变量变体（示例除外）
+.env.*
+!.env.example
