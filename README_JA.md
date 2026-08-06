@@ -18,7 +18,7 @@
 
 </div>
 
-> **このフォークについて** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) は [farion1231/cc-switch](https://github.com/farion1231/cc-switch) のフォークで、[Kimi Code](https://www.kimi.com/code/) を正式サポートしています。ダウンロードは[**このリポジトリの Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases) から。
+> **このフォークについて** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) は [farion1231/cc-switch](https://github.com/farion1231/cc-switch) のフォークで、[Kimi Code](https://www.kimi.com/code/) を正式サポートしています。ダウンロードは[**このリポジトリの Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases) から。**Byteswarm の王梓悦（Ziyue Wang）**が開発・保守。
 
 ## 🌙 Kimi Code 対応機能（このフォーク）
 

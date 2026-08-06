@@ -18,7 +18,7 @@
 
 </div>
 
-> **关于本 fork** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) 是 [farion1231/cc-switch](https://github.com/farion1231/cc-switch) 的 fork，为 [Kimi Code](https://www.kimi.com/code/) 做了一等公民适配。下载请走[**本仓库的 Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases)。
+> **关于本 fork** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) 是 [farion1231/cc-switch](https://github.com/farion1231/cc-switch) 的 fork，为 [Kimi Code](https://www.kimi.com/code/) 做了一等公民适配。下载请走[**本仓库的 Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases)。由 **byteswarm 公司王梓悦**二次开发并维护。
 
 ## 🌙 Kimi Code 定制功能（本 fork）
 

@@ -18,7 +18,7 @@ English | [中文](README_ZH.md) | [日本語](README_JA.md) | [Deutsch](README_
 
 </div>
 
-> **About this fork** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) is a fork of [farion1231/cc-switch](https://github.com/farion1231/cc-switch) with first-class [Kimi Code](https://www.kimi.com/code/) support. Downloads: [**this repo's Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases).
+> **About this fork** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) is a fork of [farion1231/cc-switch](https://github.com/farion1231/cc-switch) with first-class [Kimi Code](https://www.kimi.com/code/) support. Downloads: [**this repo's Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases). Developed and maintained by **Ziyue Wang @ Byteswarm**.
 
 ## 🌙 Kimi Code Adaptations (this fork)
 
