@@ -18,6 +18,15 @@
 
 </div>
 
+> **关于本 fork** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) 是 [farion1231/cc-switch](https://github.com/farion1231/cc-switch) 的 fork，为 [Kimi Code](https://www.kimi.com/code/) 做了一等公民适配。下载请走[**本仓库的 Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases)。
+
+## 🌙 Kimi Code 定制功能（本 fork）
+
+- **Kimi Code 供应商适配** — 开箱即用地添加和切换 Kimi Code 供应商；切换供应商时保留 `config.toml` 里自定义的 `[[hooks]]`（合并去重），不再整体覆盖配置文件。
+- **额度自动刷新** — Kimi Code 订阅额度每 2 分钟自动刷新，支持 5 小时窗口识别。
+- **任务提醒** — 设置页「Kimi Code 任务提醒」：总开关 + 三事件独立音效（回复结束 / 后台任务完成 / 子任务完成），内置 5 个 wav + macOS 14 个系统音。旧的手动通知 hook 会被自动接管；受管理 hook 带 `# ccswitch-notify` 标记，绝不动你自己的其他 hook。v3.18.1 起横幅显示任务摘要（任务描述 / 会话标题），iTerm2 不在前台时 Dock 图标还会跳一下。
+- **发布流水线** — 推一个 `v*-kimicode` tag 即自动构建五平台（macOS、Windows x64/ARM64、Linux x86_64/ARM64）并发布 GitHub Release。Windows 提供 NSIS 安装器和绿色版 zip；macOS 为 ad-hoc 签名（首次打开请右键 → 打开）。
+
 ## ❤️赞助商
 
 > [想出现在这里？](mailto:farion1231@gmail.com)

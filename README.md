@@ -18,6 +18,15 @@ English | [中文](README_ZH.md) | [日本語](README_JA.md) | [Deutsch](README_
 
 </div>
 
+> **About this fork** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) is a fork of [farion1231/cc-switch](https://github.com/farion1231/cc-switch) with first-class [Kimi Code](https://www.kimi.com/code/) support. Downloads: [**this repo's Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases).
+
+## 🌙 Kimi Code Adaptations (this fork)
+
+- **Kimi Code provider** — Add and switch to Kimi Code as a provider out of the box. Switching providers preserves your custom `[[hooks]]` in `config.toml` (merged with de-duplication) instead of overwriting the whole file.
+- **Quota auto-refresh** — Kimi Code subscription usage refreshes automatically every 2 minutes, with five-hour window detection.
+- **Task notifications** — A settings page ("Kimi Code Task Notifications") with a master toggle and per-event sounds (response finished / background task completed / subtask completed), offering bundled WAV sounds plus macOS system sounds. Hand-written legacy notify hooks are adopted automatically, and managed hooks carry a `# ccswitch-notify` marker so your own hooks are never touched. Since v3.18.1 the notification banner shows a task summary (task description / session title), and the iTerm2 Dock icon bounces once when it is not focused.
+- **Release pipeline** — Pushing a single `v*-kimicode` tag builds all five platforms (macOS, Windows x64/ARM64, Linux x86_64/ARM64) and publishes a GitHub Release automatically. Windows ships NSIS installers and portable zips; macOS builds are ad-hoc signed (right-click → Open on first launch).
+
 ## ❤️Sponsor
 
 > [Want to appear here?](mailto:farion1231@gmail.com)

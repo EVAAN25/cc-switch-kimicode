@@ -18,6 +18,15 @@
 
 </div>
 
+> **このフォークについて** — [EVAAN25/cc-switch-kimicode](https://github.com/EVAAN25/cc-switch-kimicode) は [farion1231/cc-switch](https://github.com/farion1231/cc-switch) のフォークで、[Kimi Code](https://www.kimi.com/code/) を正式サポートしています。ダウンロードは[**このリポジトリの Releases**](https://github.com/EVAAN25/cc-switch-kimicode/releases) から。
+
+## 🌙 Kimi Code 対応機能（このフォーク）
+
+- **Kimi Code プロバイダー** — Kimi Code をプロバイダーとしてすぐに追加・切り替え可能。切り替え時は `config.toml` のカスタム `[[hooks]]` を保持（マージ＋重複排除）し、ファイル全体を上書きしません。
+- **クォータ自動更新** — Kimi Code サブスクリプションの使用量を 2 分ごとに自動更新。5 時間ウィンドウの検出にも対応。
+- **タスク通知** — 設定ページ「Kimi Code タスク通知」：マスタートグルとイベント別サウンド（応答終了 / バックグラウンドタスク完了 / サブタスク完了）。内蔵 WAV と macOS システムサウンドを選択可能。手書きの旧通知 hook は自動で引き継がれ、管理対象 hook には `# ccswitch-notify` マーカーが付くため、独自 hook は一切触れられません。v3.18.1 以降、通知バナーにタスク概要（タスク説明 / セッションタイトル）を表示し、iTerm2 が前面にないときは Dock アイコンが一度跳ねます。
+- **リリースパイプライン** — `v*-kimicode` タグを 1 つ push するだけで、5 プラットフォーム（macOS、Windows x64/ARM64、Linux x86_64/ARM64）をビルドし、GitHub Release を自動公開します。Windows は NSIS インストーラーとポータブル zip、macOS は ad-hoc 署名（初回起動は右クリック → 開く）です。
+
 ## ❤️スポンサー
 
 > [ここに掲載しませんか？](mailto:farion1231@gmail.com)
