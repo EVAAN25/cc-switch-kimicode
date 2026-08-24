@@ -3,6 +3,7 @@ import type { VisibleApps } from "@/types";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { cn } from "@/lib/utils";
 import { Monitor, Terminal } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 const APP_BADGE_ICON: Partial<
   Record<AppId, { icon: typeof Terminal; offsetY?: number }>
@@ -42,6 +43,15 @@ export function AppSwitcher({
     localStorage.setItem(STORAGE_KEY, app);
     onSwitch(app);
   };
+
+  // Keep the active app visible when the strip is horizontally scrollable
+  const activeButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeButtonRef.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [activeApp, compact]);
   const iconSize = 20;
   const appIconName: Record<AppId, string> = {
     claude: "claude",
@@ -82,6 +92,7 @@ export function AppSwitcher({
           <button
             key={app}
             type="button"
+            ref={isActive ? activeButtonRef : undefined}
             onClick={() => handleSwitch(app)}
             className={cn(
               "group inline-flex items-center px-3 h-8 rounded-md text-sm font-medium transition-all duration-200",

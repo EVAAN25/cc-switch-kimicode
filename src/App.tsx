@@ -263,7 +263,8 @@ function App() {
   const effectiveUsageProvider = useLastValidValue(usageProvider);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const isToolbarCompact = useAutoCompact(toolbarRef);
+  const toolbarContentRef = useRef<HTMLDivElement>(null);
+  const isToolbarCompact = useAutoCompact(toolbarRef, toolbarContentRef);
 
   useUsageCacheBridge();
 
@@ -1300,7 +1301,8 @@ function App() {
               className="flex flex-1 min-w-0 overflow-x-hidden items-center py-4 pr-2"
             >
               <div
-                className="flex shrink-0 items-center gap-1.5 ml-auto"
+                ref={toolbarContentRef}
+                className="flex min-w-0 items-center gap-1.5 ml-auto"
                 style={{ WebkitAppRegion: "no-drag" } as any}
               >
                 {currentView === "prompts" && (
@@ -1413,14 +1415,24 @@ function App() {
                 )}
                 {currentView === "providers" && (
                   <>
-                    <AppSwitcher
-                      activeApp={activeApp}
-                      onSwitch={setActiveApp}
-                      visibleApps={visibleApps}
-                      compact={isToolbarCompact}
-                    />
+                    <div
+                      className="min-w-0 overflow-x-auto"
+                      style={{ WebkitAppRegion: "no-drag" } as any}
+                      onWheel={(e) => {
+                        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                          e.currentTarget.scrollLeft += e.deltaY;
+                        }
+                      }}
+                    >
+                      <AppSwitcher
+                        activeApp={activeApp}
+                        onSwitch={setActiveApp}
+                        visibleApps={visibleApps}
+                        compact={isToolbarCompact}
+                      />
+                    </div>
 
-                    <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+                    <div className="flex shrink-0 items-center gap-1 p-1 bg-muted rounded-xl">
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={
@@ -1596,7 +1608,7 @@ function App() {
                     <Button
                       onClick={() => setIsAddOpen(true)}
                       size="icon"
-                      className={`ml-2 ${addActionButtonClass}`}
+                      className={`ml-2 shrink-0 ${addActionButtonClass}`}
                     >
                       <Plus className="w-5 h-5" />
                     </Button>
