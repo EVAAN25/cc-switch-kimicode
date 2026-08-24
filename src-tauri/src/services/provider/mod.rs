@@ -1954,6 +1954,196 @@ requires_openai_auth = true
             );
         });
     }
+
+    #[test]
+    #[serial]
+    fn switch_skips_backfill_when_live_config_belongs_to_other_provider() {
+        let _home = TempHome::new();
+        crate::settings::reload_settings().expect("reload settings");
+
+        let db = Arc::new(Database::memory().expect("init db"));
+        let state = AppState::new(db.clone());
+
+        // 被切走的条目：存的是供应商 A 的配置
+        let current = Provider::with_id(
+            "pa".into(),
+            "Provider A".into(),
+            json!({
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "token-a",
+                    "ANTHROPIC_BASE_URL": "https://api-a.example"
+                }
+            }),
+            None,
+        );
+        let original_config = current.settings_config.clone();
+        db.save_provider("claude", &current).expect("save provider A");
+
+        // 切换目标：供应商 B
+        let target = Provider::with_id(
+            "pb".into(),
+            "Provider B".into(),
+            json!({
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "token-b",
+                    "ANTHROPIC_BASE_URL": "https://api-b.example"
+                }
+            }),
+            None,
+        );
+        db.save_provider("claude", &target).expect("save provider B");
+        db.set_current_provider("claude", "pa").expect("set db current");
+        crate::settings::set_current_provider(&AppType::Claude, Some("pa"))
+            .expect("set local current provider");
+
+        // 状态错位场景：live 里其实是另一个供应商 C 的配置，
+        // 回填守卫必须阻止 C 的 api_key/base_url 盖进条目 A。
+        write_json_file(
+            &get_claude_settings_path(),
+            &json!({
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "token-c",
+                    "ANTHROPIC_BASE_URL": "https://gateway-c.example"
+                }
+            }),
+        )
+        .expect("seed live config of another provider");
+
+        let providers = db.get_all_providers("claude").expect("get providers");
+        let result = ProviderService::switch_normal(&state, AppType::Claude, "pb", &providers)
+            .expect("switch should succeed");
+
+        let stored = db
+            .get_provider_by_id("pa", "claude")
+            .expect("get provider A")
+            .expect("provider A exists");
+        assert_eq!(
+            stored.settings_config, original_config,
+            "provider A settings_config must not be polluted by another provider's live config"
+        );
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|w| w.contains("backfill_skipped_identity_mismatch:pa")),
+            "expected a backfill-skip warning, got: {:?}",
+            result.warnings
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn switch_backfills_live_config_when_identity_matches() {
+        let _home = TempHome::new();
+        crate::settings::reload_settings().expect("reload settings");
+
+        let db = Arc::new(Database::memory().expect("init db"));
+        let state = AppState::new(db.clone());
+
+        let current = Provider::with_id(
+            "pa".into(),
+            "Provider A".into(),
+            json!({
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "token-a",
+                    "ANTHROPIC_BASE_URL": "https://api-a.example"
+                }
+            }),
+            None,
+        );
+        db.save_provider("claude", &current).expect("save provider A");
+
+        let target = Provider::with_id(
+            "pb".into(),
+            "Provider B".into(),
+            json!({
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "token-b",
+                    "ANTHROPIC_BASE_URL": "https://api-b.example"
+                }
+            }),
+            None,
+        );
+        db.save_provider("claude", &target).expect("save provider B");
+        db.set_current_provider("claude", "pa").expect("set db current");
+        crate::settings::set_current_provider(&AppType::Claude, Some("pa"))
+            .expect("set local current provider");
+
+        // live 与条目 A 身份一致，但带有用户手动加的偏好（permission），
+        // 这些改动应随 backfill 保留进条目 A。
+        write_json_file(
+            &get_claude_settings_path(),
+            &json!({
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "token-a",
+                    "ANTHROPIC_BASE_URL": "https://api-a.example"
+                },
+                "permissions": { "allow": ["Bash"] }
+            }),
+        )
+        .expect("seed matching live config");
+
+        let providers = db.get_all_providers("claude").expect("get providers");
+        let result = ProviderService::switch_normal(&state, AppType::Claude, "pb", &providers)
+            .expect("switch should succeed");
+
+        let stored = db
+            .get_provider_by_id("pa", "claude")
+            .expect("get provider A")
+            .expect("provider A exists");
+        assert_eq!(
+            stored.settings_config.get("permissions"),
+            Some(&json!({ "allow": ["Bash"] })),
+            "manual live edits should be backfilled into provider A"
+        );
+        assert!(
+            !result
+                .warnings
+                .iter()
+                .any(|w| w.contains("backfill_skipped_identity_mismatch")),
+            "matching identity must not trigger the skip warning, got: {:?}",
+            result.warnings
+        );
+    }
+
+    #[test]
+    fn backfill_identity_guard_extracts_kimi_code_toml_credentials() {
+        // 守卫复用 resolve_usage_credentials，需对 TOML 文本型配置（Kimi Code）
+        // 同样生效：不同供应商的 [providers.*] 段凭据不同即判定身份不一致。
+        let stored = Provider::with_id(
+            "k1".into(),
+            "Kimi A".into(),
+            json!({
+                "config": "[providers.alpha]\napi_key = \"key-a\"\nbase_url = \"https://api-a.example\"\n"
+            }),
+            None,
+        );
+        let other_live = json!({
+            "config": "[providers.beta]\napi_key = \"key-c\"\nbase_url = \"https://gateway-c.example\"\n"
+        });
+        assert!(ProviderService::live_config_belongs_to_other_provider(
+            &AppType::KimiCode,
+            &other_live,
+            &stored
+        ));
+
+        let same_live = json!({
+            "config": "[providers.alpha]\napi_key = \"key-a\"\nbase_url = \"https://api-a.example\"\n"
+        });
+        assert!(!ProviderService::live_config_belongs_to_other_provider(
+            &AppType::KimiCode,
+            &same_live,
+            &stored
+        ));
+
+        // 任一方提取不到凭据时保守放行（返回 false，走原 backfill 逻辑）。
+        let empty_live = json!({ "config": "" });
+        assert!(!ProviderService::live_config_belongs_to_other_provider(
+            &AppType::KimiCode,
+            &empty_live,
+            &stored
+        ));
+    }
 }
 
 impl ProviderService {
@@ -2591,6 +2781,42 @@ impl ProviderService {
         Self::switch_normal(state, app_type, id, &providers)
     }
 
+    /// 判断 live 配置是否「明确属于另一个供应商」。
+    ///
+    /// backfill 会把 live 内容回填到被切走的条目上，前提是 live 确实是该条目
+    /// 配置的运行时副本。升级/状态错位时 live 可能属于别的供应商，盲目回填会
+    /// 把别人的 api_key/base_url 盖进该条目（配置污染）。这里复用用量查询的
+    /// 凭据提取逻辑（`Provider::resolve_usage_credentials`，已覆盖各 app 的
+    /// JSON/TOML 结构）比较双方身份：
+    ///
+    /// - 双方都能提取出 base_url 且不同：端点是供应商身份的决定性信号，
+    ///   端点不同则 live 必然属于别的供应商；
+    /// - 恰好一方能提取出 base_url（端点无法比对，如官方条目无 base_url）、
+    ///   且双方都能提取出凭据且不同：live 持有的凭据不是该条目的，判异。
+    ///
+    /// 其余情况一律保守返回 false（保持原 backfill 行为）：端点相同但 key
+    /// 不同，通常只是用户在 live 里轮换了 key——这正是 backfill 要保留的
+    /// 手动修改（见 tests/provider_commands.rs 的 backfill 用例）；双方都
+    /// 提取不到 base_url 时同理，无法判异则不拦。
+    fn live_config_belongs_to_other_provider(
+        app_type: &AppType,
+        live_config: &Value,
+        provider: &Provider,
+    ) -> bool {
+        // 借一个临时 Provider 复用同一套按 app 类型分派的提取逻辑。
+        let live_probe = Provider::with_id(String::new(), String::new(), live_config.clone(), None);
+        let (live_base_url, live_api_key) = live_probe.resolve_usage_credentials(app_type);
+        let (stored_base_url, stored_api_key) = provider.resolve_usage_credentials(app_type);
+
+        let base_url_differs =
+            !live_base_url.is_empty() && !stored_base_url.is_empty() && live_base_url != stored_base_url;
+        let endpoint_uncertain = live_base_url.is_empty() != stored_base_url.is_empty();
+        let api_key_differs =
+            !live_api_key.is_empty() && !stored_api_key.is_empty() && live_api_key != stored_api_key;
+
+        base_url_differs || (endpoint_uncertain && api_key_differs)
+    }
+
     /// Normal switch flow (non-proxy mode)
     fn switch_normal(
         state: &AppState,
@@ -2635,31 +2861,50 @@ impl ProviderService {
                     // Only backfill when switching to a different provider
                     if let Ok(live_config) = read_live_settings(app_type.clone()) {
                         if let Some(mut current_provider) = providers.get(&current_id).cloned() {
-                            // 切走前先把 live 里的可共享改动（含用户直接在应用内
-                            // 装插件/加 hook/改偏好）同步进通用配置片段，再做剥离回填。
-                            // 详见 sync_common_config_snippet_from_live 的文档。
-                            Self::sync_common_config_snippet_from_live(
-                                state,
+                            // 守卫：live 配置必须确实属于被切走的条目才允许回填。
+                            // 状态错位时（如版本升级首启后 is_current 与 live 不一致）
+                            // live 里可能是另一个供应商的配置，盲目回填会把别人的
+                            // api_key/base_url 盖进该条目，污染其已存配置。
+                            if Self::live_config_belongs_to_other_provider(
                                 &app_type,
-                                &current_provider,
                                 &live_config,
-                                &mut result,
-                            );
-
-                            current_provider.settings_config =
-                                strip_common_config_from_live_settings(
-                                    state.db.as_ref(),
-                                    &app_type,
-                                    &current_provider,
-                                    live_config,
+                                &current_provider,
+                            ) {
+                                log::warn!(
+                                    "跳过 backfill：{} 的 live 配置与被切走供应商 {} 的身份（base_url/api_key）不一致，疑似属于其他供应商",
+                                    app_type.as_str(),
+                                    current_id
                                 );
-                            if let Err(e) =
-                                state.db.save_provider(app_type.as_str(), &current_provider)
-                            {
-                                log::warn!("Backfill failed: {e}");
                                 result
                                     .warnings
-                                    .push(format!("backfill_failed:{current_id}"));
+                                    .push(format!("backfill_skipped_identity_mismatch:{current_id}"));
+                            } else {
+                                // 切走前先把 live 里的可共享改动（含用户直接在应用内
+                                // 装插件/加 hook/改偏好）同步进通用配置片段，再做剥离回填。
+                                // 详见 sync_common_config_snippet_from_live 的文档。
+                                Self::sync_common_config_snippet_from_live(
+                                    state,
+                                    &app_type,
+                                    &current_provider,
+                                    &live_config,
+                                    &mut result,
+                                );
+
+                                current_provider.settings_config =
+                                    strip_common_config_from_live_settings(
+                                        state.db.as_ref(),
+                                        &app_type,
+                                        &current_provider,
+                                        live_config,
+                                    );
+                                if let Err(e) =
+                                    state.db.save_provider(app_type.as_str(), &current_provider)
+                                {
+                                    log::warn!("Backfill failed: {e}");
+                                    result
+                                        .warnings
+                                        .push(format!("backfill_failed:{current_id}"));
+                                }
                             }
                         }
                     }
