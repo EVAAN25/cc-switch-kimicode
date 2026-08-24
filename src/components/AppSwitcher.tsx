@@ -22,13 +22,13 @@ interface AppSwitcherProps {
 const ALL_APPS: AppId[] = [
   "claude",
   "claude-desktop",
+  "kimi-code",
   "codex",
   "gemini",
   "grokbuild",
   "opencode",
   "openclaw",
   "hermes",
-  "kimi-code",
 ];
 const STORAGE_KEY = "cc-switch-last-app";
 
